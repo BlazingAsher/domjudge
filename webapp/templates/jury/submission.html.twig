@@ -69,6 +69,18 @@
                        value="{{ action | upper }} this submission"
                        onclick="return confirm('Really {{ action }} submission s{{ submission.submitid }}?');"/>
             </form>
+            <form action="{{ path('jury_submission_mark_accepted', {'submitId': submission.submitid}) }}" method="post"
+                  style="display: inline; ">
+                <input type="submit" class="btn btn-outline-success btn-sm"
+                       value="Mark this submission as correct"
+                       onclick="return confirm('Really mark this submission as correct?');"/>
+            </form>
+            <form action="{{ path('jury_submission_mark_wrong', {'submitId': submission.submitid}) }}" method="post"
+                  style="display: inline; ">
+                <input type="submit" class="btn btn-outline-danger btn-sm"
+                       value="Mark this submission as incorrect"
+                       onclick="return confirm('Really mark this submission as incorrect?');"/>
+            </form>
         {% endif %}
 
         {% include 'jury/partials/rejudge_form.html.twig' with {table: 'submission', id: submission.submitid} %}
@@ -519,7 +531,7 @@
                             {% endif %}
                         {% endif %}
                         {% if run.firstJudgingRun is not null %}
-                            | 
+                            |
                             <span class="sol {% if run.firstJudgingRun.runresult == 'correct' %}sol_correct{% else %}sol_incorrect{% endif %}">
                                 {{ run.firstJudgingRun.runresult }}
                             </span>

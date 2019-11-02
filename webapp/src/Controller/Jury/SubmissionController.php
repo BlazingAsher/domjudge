@@ -884,6 +884,82 @@ class SubmissionController extends BaseController
     }
 
     /**
+     * @Route("/{submitId<\d+>}/mark-accepted", name="jury_submission_mark_accepted", methods={"POST"})
+     * @IsGranted("ROLE_ADMIN")
+     * @param EventLogService   $eventLogService
+     * @param ScoreboardService $scoreboardService
+     * @param Request           $request
+     * @param int               $submitId
+     * @return \Symfony\Component\HttpFoundation\RedirectResponse
+     * @throws \Doctrine\DBAL\DBALException
+     * @throws \Exception
+     */
+    public function markCorrectAction(
+        EventLogService $eventLogService,
+        ScoreboardService $scoreboardService,
+        Request $request,
+        int $submitId
+    ) {
+        $submission = $this->em->getRepository(Submission::class)->find($submitId);
+        $judgings = $submission->getjudgings();
+        foreach ($judgings as $j) {
+            $j->setResult('correct');
+        }
+        $this->em->flush();
+
+        // KLUDGE: We can't log an "undelete", so we re-"create".
+        // FIXME: We should also delete/recreate any dependent judging(runs).
+        $eventLogService->log('submission', $submission->getSubmitid(), 'create',
+                              $submission->getCid(), null, null, true);
+        $this->dj->auditlog('submission', $submission->getSubmitid(),
+                                         'marked correct');
+        $contest = $this->em->getRepository(Contest::class)->find($submission->getCid());
+        $team    = $this->em->getRepository(Team::class)->find($submission->getTeamid());
+        $problem = $this->em->getRepository(Problem::class)->find($submission->getProbid());
+        $scoreboardService->calculateScoreRow($contest, $team, $problem);
+
+        return $this->redirectToRoute('jury_submission', ['submitId' => $submission->getSubmitid()]);
+    }
+
+    /**
+     * @Route("/{submitId<\d+>}/mark-wrong", name="jury_submission_mark_wrong", methods={"POST"})
+     * @IsGranted("ROLE_ADMIN")
+     * @param EventLogService   $eventLogService
+     * @param ScoreboardService $scoreboardService
+     * @param Request           $request
+     * @param int               $submitId
+     * @return \Symfony\Component\HttpFoundation\RedirectResponse
+     * @throws \Doctrine\DBAL\DBALException
+     * @throws \Exception
+     */
+    public function markWrongAction(
+        EventLogService $eventLogService,
+        ScoreboardService $scoreboardService,
+        Request $request,
+        int $submitId
+    ) {
+        $submission = $this->em->getRepository(Submission::class)->find($submitId);
+        $judgings = $submission->getjudgings();
+        foreach ($judgings as $j) {
+            $j->setResult('wrong-answer');
+        }
+        $this->em->flush();
+
+        // KLUDGE: We can't log an "undelete", so we re-"create".
+        // FIXME: We should also delete/recreate any dependent judging(runs).
+        $eventLogService->log('submission', $submission->getSubmitid(), 'create',
+            $submission->getCid(), null, null, true);
+        $this->dj->auditlog('submission', $submission->getSubmitid(),
+            'marked incorrect');
+        $contest = $this->em->getRepository(Contest::class)->find($submission->getCid());
+        $team    = $this->em->getRepository(Team::class)->find($submission->getTeamid());
+        $problem = $this->em->getRepository(Problem::class)->find($submission->getProbid());
+        $scoreboardService->calculateScoreRow($contest, $team, $problem);
+
+        return $this->redirectToRoute('jury_submission', ['submitId' => $submission->getSubmitid()]);
+    }
+
+    /**
      * @Route("/{judgingId<\d+>}/verify", name="jury_judging_verify", methods={"POST"})
      * @param EventLogService   $eventLogService
      * @param ScoreboardService $scoreboardService
