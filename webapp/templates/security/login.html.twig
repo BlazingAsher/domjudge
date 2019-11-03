@@ -28,23 +28,22 @@
             <div class="additional-logins mr-2">
                 <a class="float-right text-muted" href="#" title="more auth methods"
                    onclick="collapse('.regularLoginform'); return false;" role="button">
-                    <i class="fas fa-user-ninja"></i>
+                    <i class="fas fa-user-ninja" data-toggle="tooltip" title="Override Credentials"></i>
                 </a>
                 {% if "xheaders" in allowed_authmethods and auth_xheaders_present %}
-                    <h1 class="h3 mb-3 font-weight-normal">Preconfigured Sign In</h1>
+                    <h1 class="h3 mb-3 font-weight-normal">Federated Sign In Successful</h1>
                     <form action="{{ path('login') }}" method="post">
                         <input type="hidden" name="_csrf_token"
                                value="{{ csrf_token('authenticate') }}">
                         <input type="hidden" name="_username" value="__INVALID__">
                         <div class="login-content">
                             <p>
-                                You can log in using credentials that have been configured by your
-                                administrator.
+                                Successfully authenticated with your VMCS credentials. Click the button below to continue to DOMjudge.
                             </p>
                         </div>
                         <button class="mt-auto btn btn-lg btn-success btn-block" type="submit"
                                 name="loginmethod" value="xheaders">
-                            Log in using computer credentials
+                            Continue
                         </button>
                     </form>
                     <script>
