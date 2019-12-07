@@ -50,18 +50,27 @@ class ScoreboardService
     protected $logger;
 
     /**
+     * @var EventLogService
+     */
+    protected $eventLogService;
+
+    /**
      * ScoreboardService constructor.
      * @param EntityManagerInterface $em
      * @param DOMJudgeService        $dj
+     * @param LoggerInterface        $logger
+     * @param EventLogService        $eventLogService
      */
     public function __construct(
         EntityManagerInterface $em,
         DOMJudgeService $dj,
-        LoggerInterface $logger
+        LoggerInterface $logger,
+        EventLogService $eventLogService
     ) {
-        $this->em     = $em;
-        $this->dj     = $dj;
-        $this->logger = $logger;
+        $this->em              = $em;
+        $this->dj              = $dj;
+        $this->logger          = $logger;
+        $this->eventLogService = $eventLogService;
     }
 
     /**
@@ -294,10 +303,10 @@ class ScoreboardService
         Problem $problem,
         bool    $updateRankCache = true
     ) {
-        $this->logger->debug(sprintf(
+        $this->logger->debug(
             "ScoreboardService::calculateScoreRow '%d' '%d' '%d'",
-            $contest->getCid(), $team->getTeamid(), $problem->getProbid()
-        ));
+            [ $contest->getCid(), $team->getTeamid(), $problem->getProbid() ]
+        );
 
         // First acquire an advisory lock to prevent other calls to this
         // method from interfering with our update.
@@ -527,14 +536,14 @@ class ScoreboardService
      */
     public function updateRankCache(Contest $contest, Team $team)
     {
-        $this->logger->debug(sprintf("ScoreboardService::updateRankCache '%d' '%d'", $contest->getCid(),
-                                     $team->getTeamid()));
+        $this->logger->debug("ScoreboardService::updateRankCache '%d' '%d'",
+                             [ $contest->getCid(), $team->getTeamid() ]);
 
         // First acquire an advisory lock to prevent other calls to this
         // method from interfering with our update.
         $lockString = sprintf('domjudge.%d.%d', $contest->getCid(), $team->getTeamid());
         if ($this->em->getConnection()->fetchColumn('SELECT GET_LOCK(:lock, 3)',
-                                                               [':lock' => $lockString]) != 1) {
+                                                    [':lock' => $lockString]) != 1) {
             throw new \Exception(sprintf("ScoreboardService::updateRankCache failed to obtain lock '%s'", $lockString));
         }
 
@@ -564,7 +573,7 @@ class ScoreboardService
             $totalTime[$variant] = $team->getPenalty();
         }
 
-        $penaltyTime      = (int)$this->dj->dbconfig_get('penalty_time', 20);
+        $penaltyTime      = (int) $this->dj->dbconfig_get('penalty_time', 20);
         $scoreIsInSeconds = (bool)$this->dj->dbconfig_get('score_in_seconds', false);
 
         // Now fetch the ScoreCache entries.
@@ -610,7 +619,7 @@ class ScoreboardService
             VALUES (:cid, :teamid, :pointsRestricted, :totalTimeRestricted, :pointsPublic, :totalTimePublic)', $params);
 
         if ($this->em->getConnection()->fetchColumn('SELECT RELEASE_LOCK(:lock)',
-                                                               [':lock' => $lockString]) != 1) {
+                                                    [':lock' => $lockString]) != 1) {
             throw new \Exception('ScoreboardService::updateRankCache failed to release lock');
         }
     }
@@ -641,12 +650,18 @@ class ScoreboardService
             }
         }
 
-        $this->dj->setCookie('domjudge_scorefilter',
-                                          $this->dj->jsonEncode($scoreFilter), 0, null, '', false,
-                                          false, $response);
+        $this->dj->setCookie(
+            'domjudge_scorefilter',
+            $this->dj->jsonEncode($scoreFilter),
+            0, null, '', false, false, $response
+        );
 
-        return new Filter($scoreFilter['affiliations'] ?? [], $scoreFilter['countries'] ?? [],
-                          $scoreFilter['categories'] ?? [], $scoreFilter['teams'] ?? []);
+        return new Filter(
+            $scoreFilter['affiliations'] ?? [],
+            $scoreFilter['countries'] ?? [],
+            $scoreFilter['categories'] ?? [],
+            $scoreFilter['teams'] ?? []
+        );
     }
 
     /**
@@ -682,14 +697,21 @@ class ScoreboardService
             /** @var Team $team */
             foreach ($category->getTeams() as $team) {
                 if ($teamaffil = $team->getAffiliation()) {
-                    $affiliations[$teamaffil->getName()] = $teamaffil->getName();
+                    $affiliations[$teamaffil->getName()] = array(
+                        'id'   => $this->eventLogService->externalIdFieldForEntity($teamaffil) ?
+                            $teamaffil->getExternalid() :
+                            $teamaffil->getAffilid(),
+                        'name' => $teamaffil->getName(),
+                    );
                 }
             }
 
             if (empty($affiliations)) {
                 /** @var Team $team */
                 foreach ($category->getTeams() as $team) {
-                    $affiliations[$team->getName()] = $team->getName();
+                    $affiliations[$team->getName()] = array(
+                        'id' => -1,
+                        'name' => $team->getName());
                 }
             }
             if (!empty($affiliations)) {

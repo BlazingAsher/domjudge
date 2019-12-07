@@ -78,6 +78,8 @@ class ConfigController extends AbstractController
         foreach ($judgings_per_contest as $cid => $judging_ids) {
             $eventLogService->log('judging', $judging_ids, 'update', $cid);
         }
+
+        $this->logger->info("created events for unverified judgings");
     }
 
     /**
@@ -92,6 +94,8 @@ class ConfigController extends AbstractController
         if ($request->getMethod() == 'POST' && $request->request->has('save')) {
             $this->addFlash('scoreboard_refresh', 'After changing specific ' .
                             'settings, you might need to refresh the scoreboard.');
+
+            $needs_merge = false;
             foreach ($options as $option) {
                 if (!$request->request->has('config_' . $option->getName())) {
                     // Special-case bool, since checkboxes don't return a
@@ -107,7 +111,9 @@ class ConfigController extends AbstractController
                     // that are complete, but not verified yet. Scoreboard
                     // cache refresh should take care of the rest. See #645.
                     $this->logUnverifiedJudgings($eventLogService);
+                    $needs_merge = true;
                 }
+                $old_val = $option->getValue();
                 switch ( $option->getType() ) {
                     case 'bool':
                         $option->setValue((bool)$val);
@@ -142,10 +148,19 @@ class ConfigController extends AbstractController
                         break;
 
                     default:
-                        $msg = sprintf("configation option '%s' has unknown type '%s'",
-                                       $option->getName(), $option->getType());
-                        $this->logger->warn($msg);
+                        $this->logger->warn(
+                            "configation option '%s' has unknown type '%s'",
+                            [ $option->getName(), $option->getType() ]
+                        );
                 }
+                if ($option->getValue() != $old_val) {
+                    $val_json = $this->dj->jsonEncode($option->getValue());
+                    $this->dj->auditlog('configuration', $option->getName(), 'updated', $val_json);
+                }
+            }
+
+            if ( $needs_merge ) {
+                foreach ($options as $option) $this->em->merge($option);
             }
 
             $this->em->flush();

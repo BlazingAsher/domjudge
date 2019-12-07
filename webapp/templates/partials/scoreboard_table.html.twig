@@ -15,6 +15,7 @@
 {% endif %}
 {% set showPoints = scoreboard.showPoints %}
 {% set usedCategories = scoreboard.usedCategories(limitToTeamIds) %}
+{% set hasDifferentCategoryColors = scoreboard.categoryColors(limitToTeamIds) %}
 {% set scores = scoreboard.scores | filter(score => limitToTeams is null or score.team.teamid in limitToTeamIds) %}
 {% set problems = scoreboard.problems %}
 
@@ -161,7 +162,7 @@
                         {% endif %}
                         <a {% if link %}href="{{ link }}"{% endif %}>
                             {% set affiliationId = score.team.affiliation.affilid %}
-                            {% if score.team.affiliation.externalid is not null %}
+                            {% if showExternalId(score.team.affiliation) %}
                                 {% set affiliationId = score.team.affiliation.externalid %}
                             {% endif %}
                             {% set affiliationImage = 'images/affiliations/' ~ affiliationId ~ '.png' %}
@@ -293,7 +294,7 @@
     <p><br/><br/></p>
 
     {# only print legend when there's more than one category #}
-    {% if limitToTeamIds is null and usedCategories | length > 1 %}
+    {% if limitToTeamIds is null and usedCategories | length > 1 and hasDifferentCategoryColors %}
         <table id="categ_legend" class="scoreboard scorelegend {% if jury %}scoreboard_jury{% endif %}">
             <thead>
             <tr>

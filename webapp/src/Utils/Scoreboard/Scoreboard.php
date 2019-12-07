@@ -445,19 +445,29 @@ class Scoreboard
     }
 
     /**
-     * Return whether this scoreboard has category colors
+     * Return whether this scoreboard has multiple category colors.
+     * @param array|null $limitToTeamIds
      * @return bool
      */
-    public function hasCategoryColors(): bool
+    public function hasCategoryColors(array $limitToTeamIds = null): bool
     {
+        $colors = [];
         foreach ($this->scores as $score) {
+            // skip if we have limitteams and the team is not listed
+            if (!empty($limitToTeamIds) &&
+                !in_array($score->getTeam()->getTeamid(), $limitToTeamIds)) {
+                continue;
+            }
+
             if ($score->getTeam()->getCategory() &&
                 $score->getTeam()->getCategory()->getColor()) {
-                return true;
+                $colors[$score->getTeam()->getCategory()->getColor()] = 1;
+            } else {
+                $colors['transparent'] = 1;
             }
         }
 
-        return false;
+        return count($colors) > 1;
     }
 
     /**

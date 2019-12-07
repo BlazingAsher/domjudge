@@ -122,7 +122,7 @@ class ImportExportService
         return $data;
     }
 
-    public function importContestYaml($data, string &$message = null): bool
+    public function importContestYaml($data, string &$message = null, string &$cid = null): bool
     {
         if (empty($data)) {
             $message = 'Error parsing YAML file.';
@@ -149,7 +149,7 @@ class ImportExportService
                            ))
             ->setExternalid($contest->getShortname())
             ->setStarttimeString(date_format($starttime, 'Y-m-d H:i:s e'))
-            ->setActivatetimeString('-1:00')
+            ->setActivatetimeString('-24:00')
             ->setEndtimeString(sprintf('+%s', $data['duration']));
 
         /** @var string|null $freezeDuration */
@@ -232,6 +232,8 @@ class ImportExportService
                 $this->em->persist($contestProblem);
             }
         }
+
+        $cid = $contest->getApiId($this->eventLogService);
 
         $this->em->flush();
         return true;
